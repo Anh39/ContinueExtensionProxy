@@ -6,6 +6,10 @@ Simple proxy to intercept request from Continue Extension to local Ollama server
  - Run .exe file directly or with CLI.
  - Server will forward request from port 11433 to 11434 (Ollama).
 
+## Run from source
+ - Create new python environment with version 3.12.8
+ - Install requirement with [requirements.txt](requirements.txt)
+ - Run app with `python app.py`
 ## Build from source
  - Create new python environment with version 3.12.8
  - Install requirement with [requirements.txt](requirements.txt)
