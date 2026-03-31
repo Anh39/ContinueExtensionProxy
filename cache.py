@@ -1,11 +1,11 @@
-from debug import DEBUG
-
+# from debug import DEBUG
+DEBUG = False
 PRE = "<|fim_prefix|>"
 MID = "<|fim_middle|>"
 SUF = "<|fim_suffix|>"
 EOT = "<|endoftext|>"
-START_MARKS = ["def "]
-END_MARKS = ["@", "class ", "def "]
+START_MARKS = ["def ", "function "] #, "private ", "public ", "internal ", "protected "]
+END_MARKS = ["@", "class ", "def ", "class ", "function "] #, "private ", "public ", "internal ", "protected "]
 
 def _split(prompt: str) -> tuple[str, str, str]:
     _, rest = prompt.split(PRE)
@@ -31,11 +31,12 @@ def _detect_function_prefix(prefix: str) -> int | None:
     return None
 def _detect_stop_suffix(suffix: str) -> int:
     lines = suffix.splitlines()
-    for i in range(len(lines)):
+    target = len(lines)
+    for i in range(len(lines)-1, -1, -1):
         line = lines[i]
         if any([line.lstrip().startswith(mark) for mark in END_MARKS]):
-            return i
-    return len(lines)
+            target = i
+    return target
 def function_cache(prompt: str) -> str:
     prompt = prompt.replace("\r\n", "\n")
     if DEBUG:
@@ -44,13 +45,12 @@ def function_cache(prompt: str) -> str:
     preffix, middle, suffix = _split(prompt)
     
     total = preffix + middle + suffix
-    lines = total.splitlines()
     position = len(preffix)
     function_line = _detect_function_prefix(preffix) or 0
-    end_line = _detect_stop_suffix(suffix) + len(preffix.splitlines()) - 1
+    end_line = _detect_stop_suffix(suffix)
     
-    previous_lines = lines[:function_line]
-    after_lines = lines[end_line:]
+    previous_lines = preffix.splitlines()[:function_line]
+    after_lines = suffix.splitlines()[end_line:]
     if len(previous_lines) == 0:
         previous = ""
     else:
@@ -60,12 +60,12 @@ def function_cache(prompt: str) -> str:
     else:
         after = "\n".join(after_lines) + "\n"
     previous_in_function = total[len(previous):position]
-    after_in_function = total[position:len(total)-len(after)]
+    after_in_function = total[position:len(total)-len(after)-len(middle)]
 
     result = _construct_function_prompt(
         previous,
         previous_in_function,
-        "",
+        middle,
         after_in_function,
         after
     )
