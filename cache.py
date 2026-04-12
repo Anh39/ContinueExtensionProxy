@@ -4,8 +4,8 @@ PRE = "<|fim_prefix|>"
 MID = "<|fim_middle|>"
 SUF = "<|fim_suffix|>"
 EOT = "<|endoftext|>"
-START_MARKS = ["def ", "function "] #, "private ", "public ", "internal ", "protected "]
-END_MARKS = ["@", "class ", "def ", "class ", "function "] #, "private ", "public ", "internal ", "protected "]
+START_MARKS = ["def ", "async def", "function ", "async function "] #, "private ", "public ", "internal ", "protected "]
+END_MARKS = ["@", "class ", "def ", "async def ", "class ", "function ", "async function "] #, "private ", "public ", "internal ", "protected "]
 
 def _split(prompt: str) -> tuple[str, str, str]:
     _, rest = prompt.split(PRE)
