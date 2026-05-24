@@ -4,6 +4,11 @@ PRE = "<|fim_prefix|>"
 MID = "<|fim_middle|>"
 SUF = "<|fim_suffix|>"
 EOT = "<|endoftext|>"
+<<<<<<< HEAD
+=======
+START_MARKS = ["def ", "async def", "function ", "async function "] #, "private ", "public ", "internal ", "protected "]
+END_MARKS = ["@", "class ", "def ", "async def ", "class ", "function ", "async function "] #, "private ", "public ", "internal ", "protected "]
+>>>>>>> 36f1153c5c75a4af813a9d50a5e448adc424f08b
 
 START_MARKS = ["def ", "async def ", "function ", "async function "]
 END_MARKS = ["@", "class ", "def ", "async def ", "function ", "async function "]
