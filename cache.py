@@ -4,88 +4,101 @@ PRE = "<|fim_prefix|>"
 MID = "<|fim_middle|>"
 SUF = "<|fim_suffix|>"
 EOT = "<|endoftext|>"
-START_MARKS = ["def ", "function "] #, "private ", "public ", "internal ", "protected "]
-END_MARKS = ["@", "class ", "def ", "class ", "function "] #, "private ", "public ", "internal ", "protected "]
 
-def _split(prompt: str) -> tuple[str, str, str]:
-    _, rest = prompt.split(PRE)
-    prefix, rest = rest.split(SUF)
-    suffix, middle = rest.split(MID)
-    return (prefix, middle, suffix)
-def _construct_prompt(prefix: str, middle: str, suffix: str) -> str:
-    return PRE + prefix + SUF + suffix + MID + middle
-def _construct_function_prompt(prefix: str, f_prefix: str, middle: str, f_suffix: str, suffix: str) -> str:
-    return PRE + prefix + SUF + suffix + PRE + f_prefix + SUF + f_suffix + MID + middle
-def _split_line(total: str, line_number: int) -> tuple[str, str, str]:
-    lines = total.splitlines()
-    previous_lines = lines[:line_number]
-    current_line = lines[line_number]
-    suffix_lines = lines[line_number+1:]
-    return "\n".join(previous_lines) + "\n", current_line, "\n".join(suffix_lines) + "\n"
-def _detect_function_prefix(prefix: str) -> int | None:
-    lines = prefix.splitlines()
-    for i in range(len(lines)-1, -1, -1):
-        line = lines[i]
-        if any([line.lstrip().startswith(mark) for mark in START_MARKS]):
-            return i
-    return None
-def _detect_stop_suffix(suffix: str) -> int:
-    lines = suffix.splitlines()
-    target = len(lines)
-    for i in range(len(lines)-1, -1, -1):
-        line = lines[i]
-        if any([line.lstrip().startswith(mark) for mark in END_MARKS]):
-            target = i
-    return target
+START_MARKS = ["def ", "async def ", "function ", "async function "]
+END_MARKS = ["@", "class ", "def ", "async def ", "function ", "async function "]
+
+class PromptCache:
+    def __init__(self, pre_token: str, mid_token: str, suf_token: str) -> None:
+        self.pre_mark = pre_token
+        self.mid_mark = mid_token
+        self.suf_mark = suf_token
+
+    def _split(self, prompt: str) -> tuple[str, str, str]:
+        _, rest = prompt.split(self.pre_mark)
+        prefix, rest = rest.split(self.suf_mark)
+        suffix, middle = rest.split(self.mid_mark)
+        return (prefix, middle, suffix)
+
+    def _construct_function_prompt(
+        self,
+        prefix: str,
+        function_prefix: str,
+        middle: str,
+        function_suffix: str,
+        suffix: str,
+    ) -> str:
+        return (
+            self.pre_mark
+            + prefix
+            + self.suf_mark
+            + suffix
+            + self.pre_mark
+            + function_prefix
+            + self.suf_mark
+            + function_suffix
+            + self.mid_mark
+            + middle
+        )
+
+    def _detect_function_prefix(self, prefix: str) -> int | None:
+        lines = prefix.splitlines()
+        for index in range(len(lines) - 1, -1, -1):
+            line = lines[index]
+            if any(line.lstrip().startswith(mark) for mark in START_MARKS):
+                return index
+        return None
+
+    def _detect_stop_suffix(self, suffix: str) -> int:
+        lines = suffix.splitlines()
+        target = len(lines)
+        for index in range(len(lines) - 1, -1, -1):
+            line = lines[index]
+            if any(line.lstrip().startswith(mark) for mark in END_MARKS):
+                target = index
+        return target
+
+    def function_cache(self, prompt: str) -> str:
+        prompt = prompt.replace("\r\n", "\n")
+        if DEBUG:
+            with open("log/original.py", "w", encoding="utf-8") as file:
+                file.write(prompt)
+
+        prefix, middle, suffix = self._split(prompt)
+        total = prefix + middle + suffix
+        position = len(prefix)
+        function_line = self._detect_function_prefix(prefix) or 0
+        end_line = self._detect_stop_suffix(suffix)
+
+        previous_lines = prefix.splitlines()[:function_line]
+        after_lines = suffix.splitlines()[end_line:]
+        if len(previous_lines) == 0:
+            previous = ""
+        else:
+            previous = "\n".join(previous_lines) + "\n"
+        if len(after_lines) == 0:
+            after = ""
+        else:
+            after = "\n".join(after_lines) + "\n"
+        previous_in_function = total[len(previous):position]
+        after_in_function = total[position+len(middle):len(total) - len(after)]
+
+        result = self._construct_function_prompt(
+            previous,
+            previous_in_function,
+            middle,
+            after_in_function,
+            after,
+        )
+        if DEBUG:
+            with open("log/cache.py", "w", encoding="utf-8") as file:
+                file.write(result)
+        return result
+
+
+def _function_cache(prompt: str, prefix_mark: str, middle_mark: str, suffix_mark: str) -> str:
+    cache = PromptCache(prefix_mark, middle_mark, suffix_mark)
+    return cache.function_cache(prompt)
+
 def function_cache(prompt: str) -> str:
-    prompt = prompt.replace("\r\n", "\n")
-    if DEBUG:
-        with open("log/original.py", 'w', encoding='utf-8') as file:
-            file.write(prompt)
-    preffix, middle, suffix = _split(prompt)
-    
-    total = preffix + middle + suffix
-    position = len(preffix)
-    function_line = _detect_function_prefix(preffix) or 0
-    end_line = _detect_stop_suffix(suffix)
-    
-    previous_lines = preffix.splitlines()[:function_line]
-    after_lines = suffix.splitlines()[end_line:]
-    if len(previous_lines) == 0:
-        previous = ""
-    else:
-        previous = "\n".join(previous_lines) + "\n"
-    if len(after_lines) == 0:
-        after = ""
-    else:
-        after = "\n".join(after_lines) + "\n"
-    previous_in_function = total[len(previous):position]
-    after_in_function = total[position:len(total)-len(after)-len(middle)]
-
-    result = _construct_function_prompt(
-        previous,
-        previous_in_function,
-        middle,
-        after_in_function,
-        after
-    )
-    if DEBUG:
-        with open("log/cache.py", 'w', encoding='utf-8') as file:
-            file.write(result)
-    return result
-def line_cache(prompt: str) -> str:
-    prompt = prompt.replace("\r\n", "\n")
-    if DEBUG:
-        with open("log/original.py", 'w', encoding='utf-8') as file:
-            file.write(prompt)
-    preffix, middle, suffix = _split(prompt)
-    
-    total = preffix + middle + suffix
-    line_number = len(preffix.splitlines()) - 1
-    preffix, middle, suffix = _split_line(total, line_number)
-    
-    result = _construct_prompt(preffix, middle, suffix)
-    if DEBUG:
-        with open("log/cache.py", 'w', encoding='utf-8') as file:
-            file.write(result)
-    return result
+    return _function_cache(prompt, PRE, MID, SUF)

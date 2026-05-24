@@ -6,7 +6,7 @@ from fastapi.requests import Request
 from contextlib import asynccontextmanager
 from schema import ClientRequest, ResponseChunk, FinalChunk
 from typing import cast
-from cache import line_cache, function_cache
+from cache import function_cache
 from debug import DEBUG
 @asynccontextmanager
 async def lifespan(app: FastAPI):
